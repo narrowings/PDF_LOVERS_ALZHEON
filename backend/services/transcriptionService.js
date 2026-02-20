@@ -51,6 +51,7 @@ export const transcribeAudio = async (audioBuffer, originalName = 'audio.webm') 
             `${baseUrl}/transcript`,
             {
                 audio_url: uploadUrl,
+                speech_models: ['universal-2'],
                 language_code: 'es', // Español
             },
             {
