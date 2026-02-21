@@ -9,6 +9,7 @@ import * as authController from '../controllers/authController.js';
 import * as pacienteController from '../controllers/pacienteController.js';
 import * as cuidadorController from '../controllers/cuidadorController.js';
 import * as medicoController from '../controllers/medicoController.js';
+import * as memoramaController from '../controllers/memoramaController.js';
 import { authMiddleware, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -506,6 +507,29 @@ router.get('/medico/pacientes/:pacienteId/reporte',
     authMiddleware,
     requireRole('medico'),
     medicoController.generarReporte
+);
+
+// ========== RUTAS DE MEMORAMA ==========
+
+// Guardar resultado de sesión de memorama
+router.post('/paciente/memorama',
+    authMiddleware,
+    requireRole('paciente'),
+    memoramaController.guardarResultado
+);
+
+// Obtener historial de sesiones de memorama
+router.get('/paciente/memorama',
+    authMiddleware,
+    requireRole('paciente'),
+    memoramaController.obtenerResultados
+);
+
+// Obtener análisis cognitivo basado en memorama
+router.get('/paciente/memorama/analisis',
+    authMiddleware,
+    requireRole('paciente'),
+    memoramaController.obtenerAnalisis
 );
 
 export default router;
