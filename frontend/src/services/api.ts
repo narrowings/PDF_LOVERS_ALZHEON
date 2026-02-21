@@ -1,9 +1,9 @@
 import axios from 'axios'
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true,
-})
+//export const api = axios.create({
+//  baseURL: import.meta.env.VITE_API_URL,     ///ESTO NO VA
+//  withCredentials: true,
+//})
 
 export interface PatientPhoto {
   _id: string
@@ -147,16 +147,16 @@ export const guardarSesionMemorama = async (data: {
   nivel2: MemoramaNivel;
   nivel3: MemoramaNivel;
 }): Promise<{ ok: boolean; sesion: MemoramaSesion }> => {
-  const res = await api.post('/paciente/memorama', data);
+  const res = await apiClient.post('/api/paciente/memorama', data);
   return res.data;
 };
 
 export const fetchSesionesMemorama = async (): Promise<MemoramaSesion[]> => {
-  const res = await api.get('/paciente/memorama');
+  const res = await apiClient.get('/api/paciente/memorama');
   return Array.isArray(res.data) ? res.data : res.data?.sesiones ?? [];
 };
 
 export const fetchAnalisisMemorama = async (): Promise<MemoramaAnalisis> => {
-  const res = await api.get('/paciente/memorama/analisis');
+  const res = await apiClient.get('/api/paciente/memorama/analisis');
   return res.data;
 };
