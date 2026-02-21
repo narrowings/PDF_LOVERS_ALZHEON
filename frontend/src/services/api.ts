@@ -1,5 +1,10 @@
 import axios from 'axios'
 
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: true,
+})
+
 export interface PatientPhoto {
   _id: string
   etiqueta: string
@@ -104,3 +109,54 @@ export const updatePatientPassword = async (payload: { currentPassword: string, 
   const { data } = await apiClient.put('/api/paciente/perfil/password', payload)
   return data
 }
+
+// ── MEMORAMA ──────────────────────────────────────────────
+
+export interface MemoramaNivel {
+  completado: boolean;
+  tiempoSegundos: number | null;
+  errores: number;
+}
+
+export interface MemoramaSesion {
+  _id: string;
+  fecha: string;
+  nivel1: MemoramaNivel;
+  nivel2: MemoramaNivel;
+  nivel3: MemoramaNivel;
+  tiempoTotal: number | null;
+  completadoTotal: boolean;
+}
+
+export interface MemoramaAnalisis {
+  habilidades: {
+    memoriaVisual: number;
+    atencion: number;
+    velocidadProcesamiento: number;
+    reconocimientoPatrones: number;
+    concentracion: number;
+    memoriaCortoPlazo: number;
+  };
+  observacion: string;
+  tendencia: 'mejorando' | 'estable' | 'necesita-apoyo';
+  sesionesAnalizadas: number;
+}
+
+export const guardarSesionMemorama = async (data: {
+  nivel1: MemoramaNivel;
+  nivel2: MemoramaNivel;
+  nivel3: MemoramaNivel;
+}): Promise<{ ok: boolean; sesion: MemoramaSesion }> => {
+  const res = await api.post('/paciente/memorama', data);
+  return res.data;
+};
+
+export const fetchSesionesMemorama = async (): Promise<MemoramaSesion[]> => {
+  const res = await api.get('/paciente/memorama');
+  return Array.isArray(res.data) ? res.data : res.data?.sesiones ?? [];
+};
+
+export const fetchAnalisisMemorama = async (): Promise<MemoramaAnalisis> => {
+  const res = await api.get('/paciente/memorama/analisis');
+  return res.data;
+};
