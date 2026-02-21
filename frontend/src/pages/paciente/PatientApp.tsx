@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { Navbar } from '../../components/generics/Navbar'
 import { Footer } from '../../components/generics/Footer'
+import { MemoramaPage } from '../../components/Paciente/Memorama/MemoramaPage'
 
 const mockPhotos: PatientPhoto[] = [
   {
@@ -266,6 +267,10 @@ export const PatientApp = () => {
               />
             }
           />
+          <Route
+                path="memorama"
+                element={<MemoramaPage />}
+              />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </div>
