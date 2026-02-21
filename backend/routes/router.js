@@ -509,27 +509,26 @@ router.get('/medico/pacientes/:pacienteId/reporte',
     medicoController.generarReporte
 );
 
+
+
 // ========== RUTAS DE MEMORAMA ==========
 
-// Guardar resultado de sesión de memorama
 router.post('/paciente/memorama',
     authMiddleware,
     requireRole('paciente'),
     memoramaController.guardarResultado
 );
 
-// Obtener historial de sesiones de memorama
-router.get('/paciente/memorama',
-    authMiddleware,
-    requireRole('paciente'),
-    memoramaController.obtenerResultados
-);
-
-// Obtener análisis cognitivo basado en memorama
 router.get('/paciente/memorama/analisis',
     authMiddleware,
     requireRole('paciente'),
     memoramaController.obtenerAnalisis
+);
+
+router.get('/paciente/memorama',
+    authMiddleware,
+    requireRole('paciente'),
+    memoramaController.obtenerResultados
 );
 
 export default router;
