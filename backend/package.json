@@ -5,6 +5,7 @@
     "dev": "node server.js",
     "test:regression": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest tests/regression --runInBand --forceExit",
     "test:transcription": "node scripts/testTranscription.js",
+    "test:memorama": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest tests/memorama --runInBand --forceExit",
     "test:cucumber": "cucumber-js --require features/support/hooks.cjs --require features/step_definitions/auth.steps.cjs --require features/step_definitions/resources.steps.cjs --format progress"
   },
    "jest": {
