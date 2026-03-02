@@ -6,6 +6,7 @@ import { PatientDashboard } from '../../components/Paciente/Dashboard/PatientDas
 import { PatientPhotos } from '../../components/Paciente/MisFotos/PatientPhotos'
 import { PatientRecordings } from '../../components/Paciente/MisGrabaciones/PatientRecordings'
 import { PatientSettings } from '../../components/Paciente/Configuracion/PatientSettings'
+import { MemoramaPage } from '../../components/Paciente/Memorama/MemoramaPage'
 import {
   PatientPhoto,
   PatientProfile,
@@ -22,7 +23,6 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { Navbar } from '../../components/generics/Navbar'
 import { Footer } from '../../components/generics/Footer'
-import { MemoramaPage } from '../../components/Paciente/Memorama/MemoramaPage'
 
 const mockPhotos: PatientPhoto[] = [
   {
@@ -77,66 +77,44 @@ export const PatientApp = () => {
   }, [user.nombre, user.email])
 
   useEffect(() => {
-    const loadPhotos = async () => {
+    const loadData = async () => {
       try {
-        const data = await fetchPatientPhotos()
-        setPhotos(data)
-      } catch (error) {
+        const [photosData, recordingsData, remindersData] = await Promise.all([
+          fetchPatientPhotos(),
+          fetchPatientRecordings(),
+          fetchReminderSettings(),
+        ])
+        setPhotos(photosData.length > 0 ? photosData : mockPhotos)
+        setRecordings(recordingsData)
+        setReminders(remindersData)
+      } catch {
         setPhotos(mockPhotos)
       } finally {
         setPhotosLoading(false)
-      }
-    }
-
-    const loadRecordings = async () => {
-      try {
-        const data = await fetchPatientRecordings()
-        setRecordings(data)
-      } catch (error) {
-        setRecordings([])
-      } finally {
         setRecordingsLoading(false)
       }
     }
-
-    const loadReminders = async () => {
-      try {
-        const settings = await fetchReminderSettings()
-        setReminders(settings)
-      } catch (error) {
-        setReminders(defaultReminderSettings)
-      }
-    }
-
-    loadPhotos()
-    loadRecordings()
-    loadReminders()
-  }, [])
+    if (status === 'authenticated') loadData()
+  }, [status])
 
   const sessionsThisWeek = useMemo(() => {
     const now = new Date()
-    const firstDay = new Date(now)
-    const day = now.getDay()
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1)
-    firstDay.setDate(diff)
-    firstDay.setHours(0, 0, 0, 0)
-    return recordings.filter((recording) => new Date(recording.fecha) >= firstDay).length
+    const startOfWeek = new Date(now)
+    startOfWeek.setDate(now.getDate() - now.getDay())
+    startOfWeek.setHours(0, 0, 0, 0)
+    return recordings.filter((r) => new Date(r.fecha) >= startOfWeek).length
   }, [recordings])
 
   const latestRecordingDate = useMemo(() => {
-    if (!recordings.length) return undefined
-    return new Date(recordings[0].fecha).toLocaleDateString('es-ES', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    })
+    if (recordings.length === 0) return null
+    return recordings.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0].fecha
   }, [recordings])
 
-  const handleUploadRecording = async (payload: { 
-    photoId: string, 
-    audio?: Blob, 
-    duration?: number,
-    descripcionTexto?: string 
+  const handleUploadRecording = async (payload: {
+    photoId: string
+    audio?: Blob
+    duration?: number
+    descripcionTexto?: string
   }) => {
     try {
       await uploadPatientRecording({
@@ -146,9 +124,9 @@ export const PatientApp = () => {
         descripcionTexto: payload.descripcionTexto,
       })
 
-      const relatedPhoto = photos.find((photo) => photo._id === payload.photoId)
+      const relatedPhoto = photos.find((p) => p._id === payload.photoId)
       const localAudioUrl = payload.audio ? URL.createObjectURL(payload.audio) : undefined
-      
+
       setRecordings((prev) => [
         {
           _id: `temp-${Date.now()}`,
@@ -159,7 +137,12 @@ export const PatientApp = () => {
           duracion: payload.duration || 0,
           nota: relatedPhoto?.etiqueta,
           descripcionTexto: payload.descripcionTexto,
-          tipoContenido: payload.audio && payload.descripcionTexto ? 'ambos' : payload.audio ? 'audio' : 'texto',
+          tipoContenido:
+            payload.audio && payload.descripcionTexto
+              ? 'ambos'
+              : payload.audio
+              ? 'audio'
+              : 'texto',
         },
         ...prev,
       ])
@@ -192,7 +175,10 @@ export const PatientApp = () => {
     }
   }
 
-  const handleChangePassword = async (payload: { currentPassword: string, newPassword: string }) => {
+  const handleChangePassword = async (payload: {
+    currentPassword: string
+    newPassword: string
+  }) => {
     await updatePatientPassword(payload)
   }
 
@@ -227,50 +213,50 @@ export const PatientApp = () => {
           <Routes>
             <Route
               path="dashboard"
-            element={
-              <PatientDashboard
-                userName={user.nombre ?? 'Paciente'}
-                sessionsCompleted={sessionsThisWeek}
-                weeklyGoal={4}
-                nextReminder={reminders}
-                recentRecordingDate={latestRecordingDate}
-                photoCount={photos.length}
-                onNavigate={(path) => navigate(path)}
-              />
-            }
-          />
-          <Route
-            path="fotos"
-            element={
-              <PatientPhotos
-                photos={photos}
-                onUploadRecording={handleUploadRecording}
-                loading={photosLoading}
-              />
-            }
-          />
-          <Route
-            path="grabaciones"
-            element={
-              <PatientRecordings recordings={recordings} loading={recordingsLoading} />
-            }
-          />
-          <Route
-            path="configuracion"
-            element={
-              <PatientSettings
-                reminders={reminders}
-                profile={profile}
-                onSaveReminders={handleSaveReminders}
-                onSaveProfile={handleSaveProfile}
-                onChangePassword={handleChangePassword}
-              />
-            }
-          />
-          <Route
-                path="memorama"
-                element={<MemoramaPage />}
-              />
+              element={
+                <PatientDashboard
+                  userName={user.nombre ?? 'Paciente'}
+                  sessionsCompleted={sessionsThisWeek}
+                  weeklyGoal={4}
+                  nextReminder={reminders}
+                  recentRecordingDate={latestRecordingDate ?? undefined}
+                  photoCount={photos.length}
+                  onNavigate={(path) => navigate(path)}
+                />
+              }
+            />
+            <Route
+              path="fotos"
+              element={
+                <PatientPhotos
+                  photos={photos}
+                  onUploadRecording={handleUploadRecording}
+                  loading={photosLoading}
+                />
+              }
+            />
+            <Route
+              path="grabaciones"
+              element={
+                <PatientRecordings recordings={recordings} loading={recordingsLoading} />
+              }
+            />
+            <Route
+              path="memorama"
+              element={<MemoramaPage />}
+            />
+            <Route
+              path="configuracion"
+              element={
+                <PatientSettings
+                  reminders={reminders}
+                  profile={profile}
+                  onSaveReminders={handleSaveReminders}
+                  onSaveProfile={handleSaveProfile}
+                  onChangePassword={handleChangePassword}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </div>
