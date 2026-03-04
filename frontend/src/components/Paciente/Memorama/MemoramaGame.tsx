@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { HiCheckCircle, HiClock, HiStar, HiXMark } from 'react-icons/hi2'
 import { MemoramaNivel } from '../../../services/api'
 
-const IMAGENES = [
+const IMAGENES_DEFAULT = [
   { id: 'img1', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300&q=80', label: 'Gato' },
   { id: 'img2', url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300&q=80', label: 'Perro' },
   { id: 'img3', url: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=300&q=80', label: 'Flor' },
@@ -11,28 +11,18 @@ const IMAGENES = [
   { id: 'img6', url: 'https://images.unsplash.com/photo-1444927714506-b3d4388fcf3a?w=300&q=80', label: 'Mariposa' },
 ]
 
+export interface ImagenMemorama {
+  id: string
+  url: string
+  label: string
+}
+
 interface Carta {
   uid: string
   valor: string
   tipo: 'numero' | 'imagen'
   imageUrl?: string
   label?: string
-}
-
-function crearTablero(nivel: 1 | 2 | 3): { cartas: Carta[]; visiblesInicio: number; pares: number; titulo: string; descripcion: string } {
-  if (nivel === 1) {
-    const nums = ['1', '2', '3', '4']
-    const cartas: Carta[] = barajar([...nums, ...nums].map((n, i) => ({ uid: `n1-${n}-${i}`, valor: n, tipo: 'numero' as const })))
-    return { cartas, visiblesInicio: 5, pares: 4, titulo: 'Nivel 1 — Números', descripcion: 'Observa los 4 pares durante 5 segundos y encuéntralos.' }
-  }
-  if (nivel === 2) {
-    const imgs = IMAGENES.slice(0, 4)
-    const cartas: Carta[] = barajar([...imgs, ...imgs].map((img, i) => ({ uid: `n2-${img.id}-${i}`, valor: img.id, tipo: 'imagen' as const, imageUrl: img.url, label: img.label })))
-    return { cartas, visiblesInicio: 5, pares: 4, titulo: 'Nivel 2 — Imágenes', descripcion: 'Observa los 4 pares de imágenes durante 5 segundos.' }
-  }
-  const imgs = IMAGENES.slice(0, 6)
-  const cartas: Carta[] = barajar([...imgs, ...imgs].map((img, i) => ({ uid: `n3-${img.id}-${i}`, valor: img.id, tipo: 'imagen' as const, imageUrl: img.url, label: img.label })))
-  return { cartas, visiblesInicio: 2, pares: 6, titulo: 'Nivel 3 — Avanzado', descripcion: 'Observa los 6 pares durante solo 2 segundos. ¡Concéntrate!' }
 }
 
 function barajar<T>(arr: T[]): T[] {
@@ -44,6 +34,41 @@ function barajar<T>(arr: T[]): T[] {
   return a
 }
 
+function crearTablero(nivel: 1 | 2 | 3, imagenesPersonalizadas?: ImagenMemorama[]) {
+  // Si el paciente tiene 6 o más fotos propias, se usan en niveles 2 y 3
+  const pool =
+    imagenesPersonalizadas && imagenesPersonalizadas.length >= 6
+      ? imagenesPersonalizadas
+      : IMAGENES_DEFAULT
+
+  if (nivel === 1) {
+    const nums = ['1', '2', '3', '4']
+    const cartas: Carta[] = barajar(
+      [...nums, ...nums].map((n, i) => ({ uid: `n1-${n}-${i}`, valor: n, tipo: 'numero' as const }))
+    )
+    return { cartas, visiblesInicio: 5, titulo: 'Nivel 1 — Números', descripcion: 'Observa los 4 pares durante 5 segundos y encuéntralos.' }
+  }
+
+  if (nivel === 2) {
+    const imgs = barajar(pool).slice(0, 4)
+    const cartas: Carta[] = barajar(
+      [...imgs, ...imgs].map((img, i) => ({
+        uid: `n2-${img.id}-${i}`, valor: img.id, tipo: 'imagen' as const, imageUrl: img.url, label: img.label,
+      }))
+    )
+    return { cartas, visiblesInicio: 5, titulo: 'Nivel 2 — Imágenes', descripcion: 'Observa los 4 pares de imágenes durante 5 segundos.' }
+  }
+
+  // nivel 3 — 6 pares
+  const imgs = barajar(pool).slice(0, 6)
+  const cartas: Carta[] = barajar(
+    [...imgs, ...imgs].map((img, i) => ({
+      uid: `n3-${img.id}-${i}`, valor: img.id, tipo: 'imagen' as const, imageUrl: img.url, label: img.label,
+    }))
+  )
+  return { cartas, visiblesInicio: 2, titulo: 'Nivel 3 — Avanzado', descripcion: 'Observa los 6 pares durante solo 2 segundos. ¡Concéntrate!' }
+}
+
 function formatSeg(s: number) {
   const m = Math.floor(s / 60)
   const seg = s % 60
@@ -52,13 +77,14 @@ function formatSeg(s: number) {
 
 interface Props {
   nivel: 1 | 2 | 3
+  imagenesPersonalizadas?: ImagenMemorama[]
   onNivelCompleto: (nivel: MemoramaNivel) => void
 }
 
 type FaseJuego = 'inicio' | 'jugando' | 'completado'
 
-export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
-  const tablero = useRef(crearTablero(nivel))
+export const MemoramaGame = ({ nivel, imagenesPersonalizadas, onNivelCompleto }: Props) => {
+  const tablero = useRef(crearTablero(nivel, imagenesPersonalizadas))
   const [fase, setFase] = useState<FaseJuego>('inicio')
   const [countdown, setCountdown] = useState(tablero.current.visiblesInicio)
   const [voltcadas, setVoltcadas] = useState<string[]>([])
@@ -69,7 +95,6 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
   const [ultimoError, setUltimoError] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Countdown inicio
   useEffect(() => {
     if (fase !== 'inicio') return
     if (countdown <= 0) { setFase('jugando'); setVoltcadas([]); return }
@@ -77,7 +102,6 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
     return () => clearTimeout(t)
   }, [fase, countdown])
 
-  // Timer juego
   useEffect(() => {
     if (fase === 'jugando') {
       timerRef.current = setInterval(() => setTiempoSeg((t) => t + 1), 1000)
@@ -107,40 +131,33 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
         setVoltcadas([])
         setBloqueado(false)
         setUltimoError(false)
-
         if (nuevasEnc.length === tablero.current.cartas.length) {
           setFase('completado')
           onNivelCompleto({ completado: true, tiempoSegundos: tiempoSeg + 1, errores })
         }
       } else {
-        // Error
-        const nuevosErrores = errores + 1
-        setErrores(nuevosErrores)
+        setErrores((e) => e + 1)
         setUltimoError(true)
-        setTimeout(() => {
-          setVoltcadas([])
-          setBloqueado(false)
-          setUltimoError(false)
-        }, 900)
+        setTimeout(() => { setVoltcadas([]); setBloqueado(false); setUltimoError(false) }, 900)
       }
     }
   }, [bloqueado, fase, voltcadas, encontradas, tiempoSeg, errores, onNivelCompleto])
 
   const t = tablero.current
-  const cols = t.cartas.length <= 8 ? 4 : 4
-
-  // Estrellas según tiempo
   const limites = nivel === 1 ? [60, 90, 150] : nivel === 2 ? [90, 150, 240] : [120, 200, 360]
-  const estrellas = tiempoSeg <= limites[0] ? 3 : tiempoSeg <= limites[1] ? 3 : tiempoSeg <= limites[2] ? 2 : 1
+  const estrellas = tiempoSeg <= limites[0] ? 3 : tiempoSeg <= limites[1] ? 2 : 1
+  const usandoPersonalizadas = imagenesPersonalizadas && imagenesPersonalizadas.length >= 6 && nivel !== 1
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="glass-card p-4 rounded-2xl">
         <div className="flex items-center justify-between mb-1">
           <div>
             <h3 className="text-lg font-bold text-white">{t.titulo}</h3>
             <p className="text-xs text-white/60">{t.descripcion}</p>
+            {usandoPersonalizadas && (
+              <p className="text-xs text-[#3B9CFF]/80 mt-0.5">✦ Usando tus fotos personales</p>
+            )}
           </div>
           {fase === 'jugando' && (
             <div className="flex flex-col items-end gap-1">
@@ -157,7 +174,6 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
         </div>
       </div>
 
-      {/* Countdown */}
       {fase === 'inicio' && (
         <div className="glass-panel rounded-2xl p-8 text-center space-y-3">
           <p className="text-white/70 text-sm">¡Memoriza las cartas!</p>
@@ -166,11 +182,10 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
         </div>
       )}
 
-      {/* Tablero */}
       {fase !== 'completado' && (
         <div
-          className={`grid gap-3 transition-all ${ultimoError ? 'animate-pulse' : ''}`}
-          style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+          className={`grid gap-3 ${ultimoError ? 'animate-pulse' : ''}`}
+          style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}
         >
           {t.cartas.map((carta) => {
             const voltcada = fase === 'inicio' || voltcadas.includes(carta.uid)
@@ -185,12 +200,9 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
                 disabled={fase !== 'jugando' || encontrada || voltcadas.includes(carta.uid)}
                 className={[
                   'aspect-square rounded-2xl transition-all duration-300 flex items-center justify-center select-none border-2',
-                  encontrada
-                    ? 'border-emerald-400/60 bg-emerald-500/20 cursor-default'
-                    : esError
-                    ? 'border-rose-500/60 bg-rose-500/20'
-                    : visible
-                    ? 'border-[#3B9CFF]/60 bg-[#3B9CFF]/10'
+                  encontrada ? 'border-emerald-400/60 bg-emerald-500/20 cursor-default'
+                    : esError ? 'border-rose-500/60 bg-rose-500/20'
+                    : visible ? 'border-[#3B9CFF]/60 bg-[#3B9CFF]/10'
                     : 'border-white/20 bg-white/5 hover:bg-white/10 cursor-pointer',
                 ].join(' ')}
               >
@@ -200,11 +212,8 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
                       {carta.valor}
                     </span>
                   ) : (
-                    <img
-                      src={carta.imageUrl}
-                      alt={carta.label}
-                      className={`w-full h-full object-cover rounded-xl ${encontrada ? 'opacity-60' : 'opacity-100'}`}
-                    />
+                    <img src={carta.imageUrl} alt={carta.label}
+                      className={`w-full h-full object-cover rounded-xl ${encontrada ? 'opacity-60' : ''}`} />
                   )
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -217,20 +226,13 @@ export const MemoramaGame = ({ nivel, onNivelCompleto }: Props) => {
         </div>
       )}
 
-      {/* Completado */}
       {fase === 'completado' && (
         <div className="glass-card rounded-2xl p-8 text-center space-y-4">
           <HiCheckCircle className="text-5xl text-emerald-400 mx-auto" />
           <h4 className="text-2xl font-bold text-white">¡Nivel completado!</h4>
           <div className="flex items-center justify-center gap-6 text-sm">
-            <div className="flex items-center gap-2 text-[#3B9CFF]">
-              <HiClock />
-              <span className="font-mono font-semibold">{formatSeg(tiempoSeg)}</span>
-            </div>
-            <div className="flex items-center gap-2 text-rose-300">
-              <HiXMark />
-              <span className="font-semibold">{errores} error{errores !== 1 ? 'es' : ''}</span>
-            </div>
+            <div className="flex items-center gap-2 text-[#3B9CFF]"><HiClock /><span className="font-mono font-semibold">{formatSeg(tiempoSeg)}</span></div>
+            <div className="flex items-center gap-2 text-rose-300"><HiXMark /><span className="font-semibold">{errores} error{errores !== 1 ? 'es' : ''}</span></div>
           </div>
           <div className="flex justify-center gap-1">
             {[1, 2, 3].map((s) => (

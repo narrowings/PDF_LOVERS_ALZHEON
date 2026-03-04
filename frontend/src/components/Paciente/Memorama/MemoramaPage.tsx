@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { HiChartBar, HiPuzzlePiece, HiSparkles, HiCpuChip } from 'react-icons/hi2'
-import { MemoramaGame } from './MemoramaGame'
+import { HiCpuChip, HiChartBar, HiPhoto, HiPuzzlePiece, HiSparkles } from 'react-icons/hi2'
+import { MemoramaGame, ImagenMemorama } from './MemoramaGame'
 import { MemoramaResultados } from './MemoramaResultados'
 import { MemoramaAnalisis } from './MemoramaAnalisis'
-import { MemoramaNivel, guardarSesionMemorama } from '../../../services/api'
+import { MemoramaNivel, guardarSesionMemorama, fetchPatientPhotos } from '../../../services/api'
 
 type Seccion = 'juego' | 'resultados' | 'analisis'
 type FaseJuego = 'menu' | 1 | 2 | 3 | 'fin'
@@ -28,16 +28,33 @@ export const MemoramaPage = () => {
   const [niveles, setNiveles] = useState<{ nivel1?: MemoramaNivel; nivel2?: MemoramaNivel; nivel3?: MemoramaNivel }>({})
   const [guardando, setGuardando] = useState(false)
   const [mensajeFin] = useState(MENSAJES_FIN[Math.floor(Math.random() * MENSAJES_FIN.length)])
+  const [imagenesPersonalizadas, setImagenesPersonalizadas] = useState<ImagenMemorama[]>([])
+  const [cargandoFotos, setCargandoFotos] = useState(true)
+
+  // Cargar fotos del paciente al montar
+  useEffect(() => {
+    fetchPatientPhotos()
+      .then((fotos) => {
+        const imagenes: ImagenMemorama[] = fotos.map((f) => ({
+          id: f._id,
+          url: f.url_contenido,
+          label: f.etiqueta,
+        }))
+        setImagenesPersonalizadas(imagenes)
+      })
+      .catch(() => {
+        // Si falla, simplemente se usarán las imágenes por defecto
+      })
+      .finally(() => setCargandoFotos(false))
+  }, [])
 
   const handleNivelCompleto = (nivel: 1 | 2 | 3) => async (datos: MemoramaNivel) => {
     const actualizado = { ...niveles, [`nivel${nivel}`]: datos }
     setNiveles(actualizado)
 
     if (nivel < 3) {
-      // Ir al siguiente nivel después de 1.5s
       setTimeout(() => setFaseJuego((nivel + 1) as 2 | 3), 1500)
     } else {
-      // Guardar sesión completa
       setGuardando(true)
       try {
         await guardarSesionMemorama({
@@ -60,29 +77,42 @@ export const MemoramaPage = () => {
     setFaseJuego('menu')
   }
 
+  const usandoFotosPersonales = imagenesPersonalizadas.length >= 6
+
   return (
     <div className="space-y-6">
-      {/* Título sección */}
+      {/* Título */}
       <div className="glass-card rounded-3xl p-6 flex items-center gap-4">
         <div className="p-3 rounded-xl bg-[#3B9CFF]/20">
           <HiPuzzlePiece className="text-3xl text-[#3B9CFF]" />
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-2xl font-bold text-white">Memorama Cognitivo</h2>
           <p className="text-white/70 text-sm">Ejercita tu memoria diariamente con este juego terapéutico.</p>
         </div>
+        {/* Indicador de fotos personales */}
+        {!cargandoFotos && (
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${
+            usandoFotosPersonales
+              ? 'bg-[#3B9CFF]/20 border-[#3B9CFF]/30 text-[#3B9CFF]'
+              : 'bg-white/10 border-white/20 text-white/50'
+          }`}>
+            <HiPhoto className="text-sm" />
+            {usandoFotosPersonales
+              ? `${imagenesPersonalizadas.length} fotos personales activas`
+              : `${imagenesPersonalizadas.length}/6 fotos (usando imágenes base)`}
+          </div>
+        )}
       </div>
 
-      {/* Navegación interna */}
+      {/* Navegación */}
       <div className="flex gap-2 flex-wrap">
         {navItems.map((item) => (
           <button
             key={item.key}
             onClick={() => setSeccion(item.key)}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
-              seccion === item.key
-                ? 'bg-[#3B9CFF] text-white'
-                : 'glass-button text-white/70 hover:text-white'
+              seccion === item.key ? 'bg-[#3B9CFF] text-white' : 'glass-button text-white/70 hover:text-white'
             }`}
           >
             <item.icon className="text-lg" />
@@ -91,19 +121,22 @@ export const MemoramaPage = () => {
         ))}
       </div>
 
-      {/* ── SECCIÓN JUEGO ── */}
+      {/* SECCIÓN JUEGO */}
       {seccion === 'juego' && (
         <>
-          {/* Menú inicio */}
           {faseJuego === 'menu' && (
             <div className="glass-card rounded-3xl p-8 space-y-6 text-center">
               <HiPuzzlePiece className="text-6xl text-[#3B9CFF] mx-auto" />
               <div>
                 <h3 className="text-2xl font-bold text-white mb-2">¿Listo para jugar?</h3>
                 <p className="text-white/70 text-sm max-w-md mx-auto">
-                  El memorama tiene 3 niveles de dificultad. En cada uno deberás encontrar pares de cartas.
-                  ¡Tus tiempos se registran para medir tu progreso!
+                  El memorama tiene 3 niveles. En cada uno deberás encontrar pares de cartas. ¡Tus tiempos se registran!
                 </p>
+                {usandoFotosPersonales && (
+                  <p className="text-[#3B9CFF]/80 text-xs mt-2">
+                    ✦ Los niveles 2 y 3 usarán tus fotos personales
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3 text-left">
@@ -121,38 +154,33 @@ export const MemoramaPage = () => {
 
               <button
                 onClick={() => setFaseJuego(1)}
-                className="bg-[#3B9CFF] hover:bg-[#2d7fe0] transition-colors text-white font-bold px-10 py-3 rounded-2xl text-lg"
+                disabled={cargandoFotos}
+                className="bg-[#3B9CFF] hover:bg-[#2d7fe0] disabled:opacity-50 transition-colors text-white font-bold px-10 py-3 rounded-2xl text-lg"
               >
-                ¡Comenzar!
+                {cargandoFotos ? 'Cargando...' : '¡Comenzar!'}
               </button>
             </div>
           )}
 
-          {/* Nivel activo */}
           {(faseJuego === 1 || faseJuego === 2 || faseJuego === 3) && (
             <div className="space-y-3">
-              {/* Progreso de niveles */}
               <div className="flex gap-2">
                 {[1, 2, 3].map((n) => (
-                  <div
-                    key={n}
-                    className={`flex-1 h-1.5 rounded-full transition-all ${
-                      n < faseJuego ? 'bg-emerald-400' : n === faseJuego ? 'bg-[#3B9CFF]' : 'bg-white/20'
-                    }`}
-                  />
+                  <div key={n} className={`flex-1 h-1.5 rounded-full transition-all ${
+                    n < faseJuego ? 'bg-emerald-400' : n === faseJuego ? 'bg-[#3B9CFF]' : 'bg-white/20'
+                  }`} />
                 ))}
               </div>
               <p className="text-xs text-white/50 text-center">Nivel {faseJuego} de 3</p>
-
               <MemoramaGame
                 key={`nivel-${faseJuego}`}
                 nivel={faseJuego}
+                imagenesPersonalizadas={imagenesPersonalizadas}
                 onNivelCompleto={handleNivelCompleto(faseJuego)}
               />
             </div>
           )}
 
-          {/* Fin de sesión */}
           {faseJuego === 'fin' && (
             <div className="glass-card rounded-3xl p-10 text-center space-y-6">
               <HiSparkles className="text-6xl text-yellow-400 mx-auto" />
@@ -160,29 +188,21 @@ export const MemoramaPage = () => {
                 <h3 className="text-2xl font-bold text-white mb-2">{mensajeFin}</h3>
                 <p className="text-white/60 text-sm">Has completado los 3 niveles del memorama de hoy.</p>
               </div>
-
               <div className="grid grid-cols-3 gap-3">
-                {([1, 2, 3] as const).map((n) => {
-                  const niv = niveles[`nivel${n}` as 'nivel1' | 'nivel2' | 'nivel3']
-                  const t = niv?.tiempoSegundos
+                {(['nivel1', 'nivel2', 'nivel3'] as const).map((key, i) => {
+                  const t = niveles[key]?.tiempoSegundos
                   const m = t ? Math.floor(t / 60) : 0
                   const s = t ? t % 60 : 0
                   return (
-                    <div key={n} className="glass-panel rounded-2xl p-4 space-y-1">
-                      <p className="text-white/50 text-xs">Nivel {n}</p>
-                      <p className="text-white font-mono font-bold">
-                        {t !== undefined && t !== null ? (m > 0 ? `${m}m ${s}s` : `${s}s`) : '—'}
-                      </p>
+                    <div key={key} className="glass-panel rounded-2xl p-4 space-y-1">
+                      <p className="text-white/50 text-xs">Nivel {i + 1}</p>
+                      <p className="text-white font-mono font-bold">{t != null ? (m > 0 ? `${m}m ${s}s` : `${s}s`) : '—'}</p>
                     </div>
                   )
                 })}
               </div>
-
               <div className="flex gap-3 justify-center">
-                <button
-                  onClick={reiniciar}
-                  className="glass-button text-white font-semibold px-8 py-3 rounded-2xl"
-                >
+                <button onClick={reiniciar} className="glass-button text-white font-semibold px-8 py-3 rounded-2xl">
                   Jugar de nuevo
                 </button>
                 <button
@@ -192,17 +212,13 @@ export const MemoramaPage = () => {
                   Ver mis resultados
                 </button>
               </div>
-
               {guardando && <p className="text-white/40 text-xs">Guardando sesión...</p>}
             </div>
           )}
         </>
       )}
 
-      {/* ── SECCIÓN RESULTADOS ── */}
       {seccion === 'resultados' && <MemoramaResultados />}
-
-      {/* ── SECCIÓN ANÁLISIS ── */}
       {seccion === 'analisis' && <MemoramaAnalisis />}
     </div>
   )
