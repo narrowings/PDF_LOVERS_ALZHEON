@@ -59,4 +59,12 @@ describe('[MEMORAMA] Acceso y navegación', () => {
     // El médico no debe poder ver el memorama del paciente
     cy.url().should('not.include', '/paciente/memorama')
   })
+
+  it('[MEM-ACC-09] La nueva llamada a fotos no bloquea la carga del memorama', () => {
+  // Verificar que aunque la llamada a fotos tarde, el menú carga
+  cy.contains('¡Comenzar!', { timeout: 8000 }).should('be.visible')
+  // Y que las secciones de navegación siguen funcionando
+  cy.contains('Mis Resultados').should('be.visible')
+  cy.contains('Análisis Cognitivo').should('be.visible')
+})
 })
